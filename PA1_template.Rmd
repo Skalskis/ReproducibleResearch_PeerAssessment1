@@ -1,0 +1,154 @@
+# Reproducible Research: Peer Assessment 1
+
+
+## Loading and preprocessing the data
+```{r}
+act <- read.csv(file = "activity.csv",
+                header = T,
+                col.names = c("Steps", "Date", "Interval"),
+                colClasses = c("numeric", "Date", "numeric"))
+
+```
+
+## What is mean total number of steps taken per day?
+
+Histogram of the total number of steps taken each day with indicated mean value blue and median value red
+```{r fig.width=7, fig.height=6, echo=FALSE}
+library(ggplot2)
+
+## factoring the data
+factors <- levels(factor(act$Date))
+sums <- numeric()
+for(i in 1:length(factors)) {
+    sums[i] <- sum(act[act$Date==factors[i], 1], na.rm=T)
+    }
+## histogram with indicated mean value blue and median value red
+```
+```{r fig.width=7, fig.height=6, echo=TRUE}
+ggplot(act, aes(x=sums)) +
+    geom_histogram(binwidth=1000, colour="black", fill="white") + 
+    geom_vline(aes(xintercept=mean(sums, na.rm=T)),
+               color="blue", linetype="dashed", size=1) +
+    geom_vline(aes(xintercept=median(sums, na.rm=T)),
+               color="red", linetype="solid", size=1)
+```
+
+**MEAN** and **MEDIAN** total number of steps taken per day
+```{r echo=FALSE}
+mean <- mean(sums)
+median <- median(sums)
+```
+Mean = `r mean`;
+Median = `r median`
+
+## What is the average daily activity pattern?
+```{r echo=FALSE}
+sumint <- as.numeric()
+n <- 1
+for(i in act[act$Date=="2012-10-01", 3]){
+    sumint[n] <- mean(act[act$Interval==i, 1], na.rm=T)
+    n <- n + 1
+    }
+```
+```{r echo=TRUE}
+ggplot(act, aes(x=act[act$Date=="2012-10-01", 3], y=sumint)) +
+    labs(x = "Interval", y = "Average amount of steps") +
+    geom_line()
+```
+
+```{r echo=FALSE}
+maxintrv <- act[sumint==max(sumint), 3]
+```
+
+5-minute interval, taken from average across all the days in the dataset, containing the maximum number of steps is `r maxintrv[1]`.
+
+```{r echo=FALSE}
+numna <- length(act[is.na(act$Steps), 1])
+```
+
+Total number of missing values in the dataset = `r numna`.
+
+## Imputing missing values
+```{r echo=FALSE}
+## creates a new dataset
+act2 <- act
+missingvalues <- as.numeric()
+
+## make a new column with means of 5-minute intervals
+for(i in 0:(length(act[, 1])-1)){
+    missingvalues[i+1] <- sumint[(i %% length(sumint)) + 1]
+    }   
+
+## change NA values with the mean of 5-minute intervals
+act2[is.na(act$Steps), 1] <- missingvalues[is.na(act$Steps)]
+```
+
+Histogram of the total number of steps taken each day with NA values changed
+```{r echo=FALSE}
+sums2 <- numeric()
+for(i in 1:length(factors)) {
+    sums2[i] <- sum(act2[act2$Date==factors[i], 1], na.rm=T)
+    }
+
+## histogram with indicated mean and median value (same line)
+```
+```{r fig.width=7, fig.height=6, echo=TRUE}
+ggplot(act2, aes(x=sums2)) +
+    geom_histogram(binwidth=1000, colour="black", fill="white") + 
+    geom_vline(aes(xintercept=mean(sums2, na.rm=T)),
+               color="blue", linetype="dashed", size=1) +
+    geom_vline(aes(xintercept=median(sums2, na.rm=T)),
+               color="red", linetype="solid", size=1)
+```
+
+**MEAN** and **MEDIAN** total number of steps taken per day
+```{r echo=FALSE}
+mean2 <- mean(sums2)
+median2 <- median(sums2)
+```
+Mean without NA = `r mean2`;
+Median without NA = `r median2`
+
+*Do these values differ from the estimates from the first part of the assignment?*
+Yes, the values are different. There is significant change in histogram at around 0 and 10000 steps. Both Mean and median has changed.
+
+*What is the impact of imputing missing data on the estimates of the total daily number of steps?*
+Mean and median values has changed. 
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r echo=FALSE}
+## for plotting two additional libraries are going to be used
+library(grid)
+library(gridExtra)
+
+act[, 4] <- as.character(length(act[, 2]))
+names(act)[4]<-paste("Weekday") 
+for(i in 1:length(act[, 2])){
+    if(weekdays(as.Date(act[i, 2])) == "Saturday" | 
+           weekdays(as.Date(act[i, 2])) == "Sunday"){
+        act[i, 4] <- "Weekend"
+        } else {
+            act[i, 4] <- "Weekday"
+            }
+    }
+
+avewkend <- as.numeric()
+avewkday <- as.numeric()
+n <- 1
+for(i in act[act$Date=="2012-10-01", 3]){
+    avewkend[n] <- mean(act[act$Interval==i & act$Weekday=="Weekend", 1], 
+                        na.rm=T)
+    avewkday[n] <- mean(act[act$Interval==i & act$Weekday=="Weekday", 1], 
+                        na.rm=T)
+    n <- n + 1
+    }
+```
+```{r fig.width=7, fig.height=6, echo=TRUE}
+p1 <- ggplot(act, aes(x=act[act$Date=="2012-10-01", 3], y=avewkend)) +
+    labs(x = "", y="Weekend") +
+    geom_line()
+p2 <- ggplot(act, aes(x=act[act$Date=="2012-10-01", 3], y=avewkday)) +
+    labs(x = "", y="Weekdays") +
+    geom_line()
+grid.arrange(p1, p2, nrow = 2, left= "Average amount of steps", sub="Interval")
+```
